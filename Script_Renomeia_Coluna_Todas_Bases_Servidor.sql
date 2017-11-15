@@ -1,0 +1,47 @@
+USE master
+GO
+SET NOCOUNT ON
+GO
+
+DECLARE @BASE VARCHAR(100)
+DECLARE @SQL NVARCHAR(4000)
+DECLARE @COLUNA_ANTIGA VARCHAR(50)
+DECLARE @COLUNA_NOVA VARCHAR(50)
+DECLARE @LIKE_PROCURA VARCHAR(100)
+DECLARE @TB_BASES TABLE (BASE VARCHAR(100))
+DECLARE @TB_LISTA_RENAME TABLE (COMANDO_USE VARCHAR(200), COMANDO_RENAME VARCHAR(8000))
+
+--####################################################
+SET @COLUNA_ANTIGA	= 'ID'
+SET @COLUNA_NOVA	= 'ID_MESTRE'
+SET @LIKE_PROCURA	= 'MESTRE________N'
+--####################################################
+
+INSERT INTO @TB_BASES
+			SELECT name 
+			FROM master.sys.databases D
+			WHERE D.name LIKE 'VIVO____CONV115_____'
+
+WHILE (SELECT TOP 1 1 FROM @TB_BASES) > 0
+BEGIN
+	SELECT TOP 1 @BASE = BASE FROM @TB_BASES ORDER BY BASE
+	---
+	SET @SQL = ('
+				SELECT ''USE '+@BASE+';'', ''EXEC sp_rename ''''dbo.''+T.name+''.'+@COLUNA_ANTIGA+''''', '''''+@COLUNA_NOVA+''''', ''''COLUMN'''';''
+				FROM '+@BASE+'.sys.columns C
+				INNER JOIN '+@BASE+'.sys.tables T
+					ON T.object_id = C.object_id
+				WHERE 1=1
+				AND C.name = '''+@COLUNA_ANTIGA+'''
+				AND T.name LIKE '''+@LIKE_PROCURA+''' '
+				)
+	
+	INSERT INTO @TB_LISTA_RENAME	
+	EXEC(@SQL)
+	---
+	DELETE FROM @TB_BASES WHERE BASE = @BASE
+END
+
+SELECT * FROM @TB_LISTA_RENAME
+GO
+
